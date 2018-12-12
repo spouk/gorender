@@ -151,7 +151,7 @@ func (s *Render) Render(name string, data interface{}, w interface{}) (err error
 		}
 		return
 	}
-	switch _ := w.(type) {
+	switch t := w.(type) {
 	case http.ResponseWriter:
 		resp := w.(http.ResponseWriter)
 		resp.Header().Add(ContentType, TextHTMLCharsetUTF8)
@@ -160,7 +160,7 @@ func (s *Render) Render(name string, data interface{}, w interface{}) (err error
 	case *os.File:
 		w.(*os.File).Write(buf.Bytes())
 	default:
-		s.logger.Printf(fmt.Sprintf("wrong output interface", err.Error()))
+		s.logger.Printf(fmt.Sprintf("wrong output interface %T", t,  err.Error()))
 		if s.DebugFatal {
 			s.logger.Fatal(err)
 		}
