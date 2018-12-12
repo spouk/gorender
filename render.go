@@ -138,7 +138,7 @@ func (s *Render) ReloadTemplate() {
 }
 
 //показ указанного шаблона, с указанием data-контейнера, и интерфейса вывода
-func (s *Render) Render(name string, data interface{}, w io.Writer) (err error) {
+func (s *Render) Render(name string, data interface{}, w interface{}) (err error) {
 	defer s.catcherPanic()
 	if s.Debug || s.Temp == nil {
 		s.ReloadTemplate()
@@ -151,10 +151,20 @@ func (s *Render) Render(name string, data interface{}, w io.Writer) (err error) 
 		}
 		return
 	}
-	resp := w.(http.ResponseWriter)
-	resp.Header().Add(ContentType, TextHTMLCharsetUTF8)
-	resp.WriteHeader(http.StatusOK)
-	resp.Write(s.HTMLTrims(buf.Bytes()))
+	switch _ := w.(type) {
+	case http.ResponseWriter:
+		resp := w.(http.ResponseWriter)
+		resp.Header().Add(ContentType, TextHTMLCharsetUTF8)
+		resp.WriteHeader(http.StatusOK)
+		resp.Write(s.HTMLTrims(buf.Bytes()))
+	case *os.File:
+		w.(*os.File).Write(buf.Bytes())
+	default:
+		s.logger.Printf(fmt.Sprintf("wrong output interface", err.Error()))
+		if s.DebugFatal {
+			s.logger.Fatal(err)
+		}
+	}
 
 	return
 }
@@ -180,6 +190,7 @@ func (s *Render) RenderCode(httpCode int, name string, data interface{}, w io.Wr
 
 	return
 }
+
 func (s *Render) RenderTxt(httpCode int, name string, w io.Writer) (err error) {
 	//read txt file
 	file, err := os.Open(name)
