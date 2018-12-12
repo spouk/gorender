@@ -170,7 +170,7 @@ func (s *Render) Render(name string, data interface{}, w interface{}) (err error
 }
 
 //показ указанного шаблона, с указанием data-контейнера, и интерфейса вывода + указание http кода
-func (s *Render) RenderCode(httpCode int, name string, data interface{}, w io.Writer) (err error) {
+func (s *Render) RenderCode(httpCode int, name string, data interface{}, w interface{}) (err error) {
 	defer s.catcherPanic()
 	if s.Debug || s.Temp == nil {
 		s.ReloadTemplate()
@@ -183,15 +183,24 @@ func (s *Render) RenderCode(httpCode int, name string, data interface{}, w io.Wr
 		}
 		return
 	}
-	resp := w.(http.ResponseWriter)
-	resp.Header().Add(ContentType, TextHTMLCharsetUTF8)
-	resp.WriteHeader(httpCode)
-	resp.Write(s.HTMLTrims(buf.Bytes()))
-
+	switch t := w.(type) {
+	case http.ResponseWriter:
+		resp := w.(http.ResponseWriter)
+		resp.Header().Add(ContentType, TextHTMLCharsetUTF8)
+		resp.WriteHeader(httpCode)
+		resp.Write(s.HTMLTrims(buf.Bytes()))
+	case *os.File:
+		w.(*os.File).Write(buf.Bytes())
+	default:
+		s.logger.Printf(fmt.Sprintf("wrong output interface %T", t,  err.Error()))
+		if s.DebugFatal {
+			s.logger.Fatal(err)
+		}
+	}
 	return
 }
 
-func (s *Render) RenderTxt(httpCode int, name string, w io.Writer) (err error) {
+func (s *Render) RenderTxt(httpCode int, name string, w interface{}) (err error) {
 	//read txt file
 	file, err := os.Open(name)
 	if err != nil {
@@ -209,10 +218,20 @@ func (s *Render) RenderTxt(httpCode int, name string, w io.Writer) (err error) {
 		}
 		return err
 	}
-	resp := w.(http.ResponseWriter)
-	resp.Header().Add(ContentType, TextPlain)
-	resp.WriteHeader(httpCode)
-	resp.Write(outFile)
+	switch t := w.(type) {
+	case http.ResponseWriter:
+		resp := w.(http.ResponseWriter)
+		resp.Header().Add(ContentType, TextPlain)
+		resp.WriteHeader(httpCode)
+		resp.Write(outFile)
+	case *os.File:
+		w.(*os.File).Write(outFile)
+	default:
+		s.logger.Printf(fmt.Sprintf("wrong output interface %T", t,  err.Error()))
+		if s.DebugFatal {
+			s.logger.Fatal(err)
+		}
+	}
 
 	return
 }
